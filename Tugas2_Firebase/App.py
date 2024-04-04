@@ -1,39 +1,42 @@
 # app.py
-# Required Imports
+# Impor yang diperlukan
 import os
 from flask import Flask, request, jsonify
 from firebase_admin import credentials, firestore, initialize_app
 import uuid
 from datetime import datetime
-# Initialize Flask App
+
+# Inisialisasi Aplikasi Flask
 app = Flask(__name__)
-# Initialize Firestore DB
+
+# Inisialisasi Database Firestore
 cred = credentials.Certificate('key.json')
 default_app = initialize_app(cred)
 db = firestore.client()
 produk_ref = db.collection('produk')
 
+# Endpoint untuk menambahkan data baru
 @app.route('/add', methods=['POST'])
 def create():
     try:
-        # Generate UUID for the document
+        # Generate UUID untuk dokumen baru
         id = str(uuid.uuid4())
-        # Set the generated UUID as ID for the document
+        # Tetapkan UUID yang dihasilkan sebagai ID untuk dokumen
         request.json['id'] = id
-        # Add document to Firestore collection
+        # Tambahkan dokumen ke koleksi Firestore
         produk_ref.document(id).set(request.json)
         return jsonify({"success": True, "id": id}), 200
     except Exception as e:
         return f"An Error Occured: {e}"
 
-
+# Endpoint untuk membaca data
 @app.route('/list', methods=['GET'])
 def read():
     try:
-        # Check if ID was passed to URL query
+        # Periksa apakah ID disertakan dalam query URL
         produk_id = request.args.get('id')
         if produk_id:
-            # Fetch document by ID
+            # Ambil dokumen berdasarkan ID
             produk = produk_ref.document(produk_id).get()
             response = {
                 "data": produk.to_dict(),
@@ -42,7 +45,7 @@ def read():
             }
             return jsonify(response), 200
         else:
-            # Fetch all documents
+            # Ambil semua dokumen
             all_produk = [doc.to_dict() for doc in produk_ref.stream()]
             response = {
                 "data": all_produk,
@@ -59,6 +62,7 @@ def read():
         }
         return jsonify(response), 500
 
+# Endpoint untuk mengupdate data
 @app.route('/update', methods=['POST', 'PUT'])
 def update():
     try:
@@ -78,13 +82,14 @@ def update():
         }
         return jsonify(response), 500
 
+# Endpoint untuk menghapus data
 @app.route('/delete', methods=['GET', 'DELETE'])
 def delete():
     try:
-        # Check for ID in URL query
+        # Periksa apakah ID disertakan dalam query URL
         produk_id = request.args.get('id')
         if produk_id:
-            # Delete the document with the provided ID from Firestore
+            # Hapus dokumen dengan ID yang disediakan dari Firestore
             produk_ref.document(produk_id).delete()
             response = {
                 "message": f"produk dengan id {produk_id} berhasi dihapus",
@@ -106,14 +111,13 @@ def delete():
         }
         return jsonify(response), 500
 
-    
-
+# Endpoint untuk mendapatkan data berdasarkan jenis
 @app.route('/jenis', methods=['GET'])
 def get_by_jenis():
     try:
         produk_jenis = request.args.get('jenis')
         if produk_jenis:
-            # Query Firestore for documents with matching jenis
+            # Query Firestore untuk dokumen dengan jenis yang cocok
             query = produk_ref.where('jenis', '==', produk_jenis).stream()
             produk = [doc.to_dict() for doc in query]
             if produk:
@@ -134,8 +138,8 @@ def get_by_jenis():
     except Exception as e:
         return f"An Error Occurred: {e}", 500
 
-
-
+# Mendapatkan port dari environment variable atau menggunakan port default 8080
 port = int(os.environ.get('PORT', 8080))
 if __name__ == '__main__':
+    # Menjalankan aplikasi Flask
     app.run(threaded=True, host='0.0.0.0', port=port)
